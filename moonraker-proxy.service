@@ -5,10 +5,10 @@ After=network.target moonraker.service
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/MoonrakerPreProcessingProxy
-Environment=VIRTUAL_ENV=/home/pi/MoonrakerPreProcessingProxy/.venv
-Environment=PATH=/home/pi/MoonrakerPreProcessingProxy/.venv/bin:$PATH
-ExecStart=/home/pi/MoonrakerPreProcessingProxy/.venv/bin/python main.py
+WorkingDirectory=/home/pi/MoonrakerPreprocessingProxy
+Environment=VIRTUAL_ENV=/home/pi/MoonrakerPreprocessingProxy/.venv
+Environment=PATH=/home/pi/MoonrakerPreprocessingProxy/.venv/bin:$PATH
+ExecStart=/home/pi/MoonrakerPreprocessingProxy/.venv/bin/python main.py
 Restart=always
 RestartSec=5
 StandardOutput=append:/var/log/moonraker-proxy.log
