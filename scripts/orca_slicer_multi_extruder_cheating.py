@@ -44,7 +44,14 @@ async def process(file_path: Path):
                 continue
                 
         # Process M104 and M109 commands - remove T[n] part if present
-        if line.strip().startswith(('M104', 'M109')):
+        if line.strip().startswith('M104'):
+            if 'preheating' in line.lower():
+                # Comment out the entire line if it contains preheating
+                line = ';' + line
+            else:
+                # Remove T[n] part but keep the rest of the command
+                line = re.sub(r'\bT\d+\s*', '', line)
+        elif line.strip().startswith('M109'):
             # Remove T[n] part but keep the rest of the command
             line = re.sub(r'\bT\d+\s*', '', line)
         # Remove standalone T[n] commands
