@@ -113,19 +113,26 @@ async def proxy_post(request: Request, path: str):
             # Upload processed file to Moonraker
             log_info(f"Uploading processed file to Moonraker: {filename}")
             async with httpx.AsyncClient() as client:
-                with open(temp_path, "rb") as f:
-                    response = await client.post(
-                        f"{MOONRAKER_URL}/{path}",
-                        content=f.read(),
-                        headers={
-                            "Content-Type": request.headers.get("content-type", "application/octet-stream")
-                        },
-                        params=params
-                    )
+                files = {
+                    "file": (filename, open(temp_path, "rb"), "application/octet-stream")
+                }
+                # Forward any additional form fields from the original request
+                data = {
+                    key: value for key, value in request.query_params.items()
+                    if key != "filename"
+                }
+                
+                response = await client.post(
+                    f"{MOONRAKER_URL}/{path}",
+                    files=files,
+                    data=data
+                )
                 temp_path.unlink()  # Clean up temporary file
                 log_debug(f"Moonraker response status: {response.status_code}")
                 if DEBUG:
                     log_debug(f"Moonraker response headers: {dict(response.headers)}")
+                    if response.status_code >= 400:
+                        log_debug(f"Moonraker error response: {response.text}")
                 return StreamingResponse(
                     content=response.iter_bytes(),
                     status_code=response.status_code,
