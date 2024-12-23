@@ -45,8 +45,8 @@ async def process(file_path: Path):
                 
         # Process M104 and M109 commands - remove T[n] part if present
         if line.strip().startswith('M104'):
-            if 'preheating' in line.lower():
-                # Comment out the entire line if it contains preheating
+            if 'preheat' in line.lower():
+                # Comment out the entire line if it contains preheat
                 line = ';' + line
             else:
                 # Remove T[n] part but keep the rest of the command
