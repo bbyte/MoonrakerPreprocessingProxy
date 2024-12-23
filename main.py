@@ -84,9 +84,9 @@ async def proxy_post(request: Request, path: str):
     content_type = request.headers.get("content-type", "")
     log_info(f"Handling POST request to path: {path}")
     
-    # Check if this is a file upload request
-    if "multipart/form-data" in content_type and "upload" in path:
-        log_info("Detected file upload request")
+    # Check if this is a file upload request to /api/files/local
+    if path == "api/files/local":
+        log_info("Detected file upload request to /api/files/local")
         form = await request.form()
         for field_name, field_value in form.items():
             if isinstance(field_value, UploadFile):
