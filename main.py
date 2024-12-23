@@ -89,15 +89,24 @@ async def proxy_post(request: Request, path: str):
     if path == "api/files/local":
         log_info("Detected file upload request to /api/files/local")
         try:
-            # Get query parameters
-            params = dict(request.query_params)
-            filename = params.get('filename', 'uploaded_file.gcode')
-            log_debug(f"Upload parameters: {params}")
-
+            # Parse the multipart form data
+            form = await request.form()
+            log_debug(f"Form fields: {list(form.keys())}")
+            
+            # Get the file from the form
+            file = form.get("file")
+            if not file:
+                raise ValueError("No file found in upload request")
+                
+            filename = file.filename
+            content = await file.read()
+            
+            log_info(f"Processing uploaded file: {filename}")
+            
             # Save the uploaded file temporarily
             temp_path = Path(f"/tmp/{filename}")
             with open(temp_path, "wb") as temp_file:
-                temp_file.write(body)
+                temp_file.write(content)
             log_debug(f"Saved temporary file to: {temp_path}")
 
             # Execute preprocessing rules
@@ -108,18 +117,20 @@ async def proxy_post(request: Request, path: str):
                     await load_and_execute_rule(rule["script"], temp_path)
                     rules_executed += 1
             
+            # Log the number of rules executed  
             log_info(f"Executed {rules_executed} preprocessing rules")
 
             # Upload processed file to Moonraker
             log_info(f"Uploading processed file to Moonraker: {filename}")
             async with httpx.AsyncClient() as client:
+                # Create form data with original file name
                 files = {
                     "file": (filename, open(temp_path, "rb"), "application/octet-stream")
                 }
                 # Forward any additional form fields from the original request
                 data = {
-                    key: value for key, value in request.query_params.items()
-                    if key != "filename"
+                    key: value for key, value in form.items()
+                    if key != "file"
                 }
                 
                 response = await client.post(
