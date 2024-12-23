@@ -4,7 +4,7 @@ import re
 async def process(file_path: Path):
     """
     Preprocessing rule for OrcaSlicer multi-extruder files that:
-    1. Removes M600 and T[n] commands before "filament start gcode" marker
+    1. Removes M600 and T[n] commands before ";TYPE:Skirt" marker
     2. Removes standalone T[n] commands throughout the file
     3. Removes T[n] part from M104 and M109 commands
     
@@ -28,18 +28,18 @@ async def process(file_path: Path):
     lines = text_content.splitlines(keepends=True)
     
     # Process the file
-    found_filament_start = False
+    found_skirt = False
     modified_lines = []
     
     for line in lines:
-        # Check for filament start marker
-        if "filament start gcode" in line.lower():
-            found_filament_start = True
+        # Check for skirt marker
+        if ";TYPE:Skirt" in line:
+            found_skirt = True
             modified_lines.append(line)
             continue
             
-        # Before filament start marker, remove M600 and T[n] commands
-        if not found_filament_start:
+        # Before skirt marker, remove M600 and T[n] commands
+        if not found_skirt:
             if re.match(r'^\s*(M600|T\d+)\s*$', line.strip()):
                 continue
                 
