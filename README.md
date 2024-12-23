@@ -11,30 +11,15 @@ A proxy server that sits between your slicer and Moonraker, allowing custom prep
 
 ## Requirements
 
-- pyenv (for Python version management)
-- Python 3.11+ (will be installed via pyenv)
+- Python 3.7+
 - Dependencies will be installed in a virtual environment
 
 ## Installation
 
-1. Install pyenv and Python build dependencies:
+1. Install Python and venv if not already installed:
 ```bash
-# Install pyenv dependencies
 sudo apt-get update
-sudo apt-get install -y make build-essential libssl-dev zlib1g-dev \
-libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev \
-libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl
-
-# Install pyenv
-curl https://pyenv.run | bash
-
-# Add to ~/.bashrc
-echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-echo 'eval "$(pyenv init -)"' >> ~/.bashrc
-
-# Reload shell
-source ~/.bashrc
+sudo apt-get install -y python3 python3-venv
 ```
 
 2. Clone this repository:
@@ -43,16 +28,10 @@ git clone https://github.com/yourusername/MoonrakerPreProcessingProxy.git
 cd MoonrakerPreProcessingProxy
 ```
 
-3. Set up Python environment:
+3. Set up Python virtual environment:
 ```bash
-# Install Python 3.11.6
-pyenv install 3.11.6
-
-# Set local Python version
-pyenv local 3.11.6
-
 # Create and activate virtual environment
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
