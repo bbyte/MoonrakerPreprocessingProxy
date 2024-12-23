@@ -1,0 +1,16 @@
+[Unit]
+Description=Moonraker Preprocessing Proxy
+After=network.target moonraker.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/MoonrakerPreProcessingProxy
+ExecStart=/usr/bin/python3 /home/pi/MoonrakerPreProcessingProxy/main.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/moonraker-proxy.log
+StandardError=append:/var/log/moonraker-proxy.log
+
+[Install]
+WantedBy=multi-user.target
