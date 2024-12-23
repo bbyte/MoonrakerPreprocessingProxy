@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 import json
+from urllib.parse import parse_qs
 
 app = FastAPI()
 
@@ -88,56 +89,53 @@ async def proxy_post(request: Request, path: str):
     if path == "api/files/local":
         log_info("Detected file upload request to /api/files/local")
         try:
-            form = await request.form()
-            log_debug(f"Form fields: {list(form.keys())}")
-            
-            for field_name, field_value in form.items():
-                if isinstance(field_value, UploadFile):
-                    log_info(f"Processing uploaded file: {field_value.filename}")
-                    # Save the uploaded file temporarily
-                    temp_path = Path(f"/tmp/{field_value.filename}")
-                    content = await field_value.read()
-                    
-                    with open(temp_path, "wb") as temp_file:
-                        temp_file.write(content)
-                    log_debug(f"Saved temporary file to: {temp_path}")
+            # Get query parameters
+            params = dict(request.query_params)
+            filename = params.get('filename', 'uploaded_file.gcode')
+            log_debug(f"Upload parameters: {params}")
 
-                    # Execute preprocessing rules
-                    rules_executed = 0
-                    for rule in config["preprocessing_rules"]:
-                        if rule["enabled"]:
-                            log_info(f"Executing rule {rule['name']}")
-                            await load_and_execute_rule(rule["script"], temp_path)
-                            rules_executed += 1
-                    
-                    log_info(f"Executed {rules_executed} preprocessing rules")
+            # Save the uploaded file temporarily
+            temp_path = Path(f"/tmp/{filename}")
+            with open(temp_path, "wb") as temp_file:
+                temp_file.write(body)
+            log_debug(f"Saved temporary file to: {temp_path}")
 
-                    # Upload processed file to Moonraker
-                    log_info(f"Uploading processed file to Moonraker: {field_value.filename}")
-                    async with httpx.AsyncClient() as client:
-                        files = {field_name: (field_value.filename, open(temp_path, "rb"), field_value.content_type)}
-                        response = await client.post(f"{MOONRAKER_URL}/{path}", files=files)
-                        temp_path.unlink()  # Clean up temporary file
-                        log_debug(f"Moonraker response status: {response.status_code}")
-                        if DEBUG:
-                            log_debug(f"Moonraker response headers: {dict(response.headers)}")
-                        return StreamingResponse(
-                            content=response.iter_bytes(),
-                            status_code=response.status_code,
-                            headers=dict(response.headers)
-                        )
-                else:
-                    log_debug(f"Skipping non-file field: {field_name}")
+            # Execute preprocessing rules
+            rules_executed = 0
+            for rule in config["preprocessing_rules"]:
+                if rule["enabled"]:
+                    log_info(f"Executing rule {rule['name']}")
+                    await load_and_execute_rule(rule["script"], temp_path)
+                    rules_executed += 1
             
-            log_error("No file found in upload request")
-            return StreamingResponse(
-                content=b"No file found in request",
-                status_code=400
-            )
+            log_info(f"Executed {rules_executed} preprocessing rules")
+
+            # Upload processed file to Moonraker
+            log_info(f"Uploading processed file to Moonraker: {filename}")
+            async with httpx.AsyncClient() as client:
+                with open(temp_path, "rb") as f:
+                    response = await client.post(
+                        f"{MOONRAKER_URL}/{path}",
+                        content=f.read(),
+                        headers={
+                            "Content-Type": request.headers.get("content-type", "application/octet-stream")
+                        },
+                        params=params
+                    )
+                temp_path.unlink()  # Clean up temporary file
+                log_debug(f"Moonraker response status: {response.status_code}")
+                if DEBUG:
+                    log_debug(f"Moonraker response headers: {dict(response.headers)}")
+                return StreamingResponse(
+                    content=response.iter_bytes(),
+                    status_code=response.status_code,
+                    headers=dict(response.headers)
+                )
+
         except Exception as e:
             log_error("Error processing file upload", e)
             return StreamingResponse(
-                content=str(e).encode(),
+                content=iter([str(e).encode()]),
                 status_code=500
             )
 
@@ -147,7 +145,8 @@ async def proxy_post(request: Request, path: str):
         response = await client.post(
             f"{MOONRAKER_URL}/{path}",
             content=body,
-            headers=request.headers
+            headers=request.headers,
+            params=dict(request.query_params)
         )
         log_debug(f"Moonraker response status: {response.status_code}")
         return StreamingResponse(
@@ -168,7 +167,8 @@ async def proxy_request(request: Request, path: str):
             method=request.method,
             url=f"{MOONRAKER_URL}/{path}",
             content=body,
-            headers=request.headers
+            headers=request.headers,
+            params=dict(request.query_params)
         )
         log_debug(f"Moonraker response status: {response.status_code}")
         return StreamingResponse(
