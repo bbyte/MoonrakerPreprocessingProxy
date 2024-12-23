@@ -87,36 +87,59 @@ async def proxy_post(request: Request, path: str):
     # Check if this is a file upload request to /api/files/local
     if path == "api/files/local":
         log_info("Detected file upload request to /api/files/local")
-        form = await request.form()
-        for field_name, field_value in form.items():
-            if isinstance(field_value, UploadFile):
-                log_info(f"Processing uploaded file: {field_value.filename}")
-                # Save the uploaded file temporarily
-                temp_path = Path(f"/tmp/{field_value.filename}")
-                with open(temp_path, "wb") as temp_file:
+        try:
+            form = await request.form()
+            log_debug(f"Form fields: {list(form.keys())}")
+            
+            for field_name, field_value in form.items():
+                if isinstance(field_value, UploadFile):
+                    log_info(f"Processing uploaded file: {field_value.filename}")
+                    # Save the uploaded file temporarily
+                    temp_path = Path(f"/tmp/{field_value.filename}")
                     content = await field_value.read()
-                    temp_file.write(content)
-                log_debug(f"Saved temporary file to: {temp_path}")
+                    
+                    with open(temp_path, "wb") as temp_file:
+                        temp_file.write(content)
+                    log_debug(f"Saved temporary file to: {temp_path}")
 
-                # Execute preprocessing rules
-                for rule in config["preprocessing_rules"]:
-                    if rule["enabled"]:
-                        await load_and_execute_rule(rule["script"], temp_path)
+                    # Execute preprocessing rules
+                    rules_executed = 0
+                    for rule in config["preprocessing_rules"]:
+                        if rule["enabled"]:
+                            log_info(f"Executing rule {rule['name']}")
+                            await load_and_execute_rule(rule["script"], temp_path)
+                            rules_executed += 1
+                    
+                    log_info(f"Executed {rules_executed} preprocessing rules")
 
-                # Upload processed file to Moonraker
-                log_info(f"Uploading processed file to Moonraker: {field_value.filename}")
-                async with httpx.AsyncClient() as client:
-                    files = {field_name: (field_value.filename, open(temp_path, "rb"), field_value.content_type)}
-                    response = await client.post(f"{MOONRAKER_URL}/{path}", files=files)
-                    temp_path.unlink()  # Clean up temporary file
-                    log_debug(f"Moonraker response status: {response.status_code}")
-                    if DEBUG:
-                        log_debug(f"Moonraker response headers: {dict(response.headers)}")
-                    return StreamingResponse(
-                        content=response.iter_bytes(),
-                        status_code=response.status_code,
-                        headers=dict(response.headers)
-                    )
+                    # Upload processed file to Moonraker
+                    log_info(f"Uploading processed file to Moonraker: {field_value.filename}")
+                    async with httpx.AsyncClient() as client:
+                        files = {field_name: (field_value.filename, open(temp_path, "rb"), field_value.content_type)}
+                        response = await client.post(f"{MOONRAKER_URL}/{path}", files=files)
+                        temp_path.unlink()  # Clean up temporary file
+                        log_debug(f"Moonraker response status: {response.status_code}")
+                        if DEBUG:
+                            log_debug(f"Moonraker response headers: {dict(response.headers)}")
+                        return StreamingResponse(
+                            content=response.iter_bytes(),
+                            status_code=response.status_code,
+                            headers=dict(response.headers)
+                        )
+                else:
+                    log_debug(f"Skipping non-file field: {field_name}")
+            
+            log_error("No file found in upload request")
+            return StreamingResponse(
+                content=b"No file found in request",
+                status_code=400
+            )
+        except Exception as e:
+            log_error("Error processing file upload", e)
+            return StreamingResponse(
+                content=str(e).encode(),
+                status_code=500
+            )
 
     # For non-file-upload requests, pass through directly
     log_debug(f"Passing through request to Moonraker: {path}")
