@@ -10,3 +10,7 @@ preprocessing_rules:
   - name: "example_rule"
     script: "scripts/example_rule.py"
     enabled: true
+
+  - name: "ME cheat"
+    script: "scripts/orca_slicer_multi_extruder_cheating.py"
+    enabled: false
