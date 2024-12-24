@@ -24,7 +24,7 @@ sudo apt-get install -y python3 python3-venv
 
 2. Clone this repository:
 ```bash
-git clone https://github.com/bbyte/MoonrakerPreProcessingProxy.git
+git clone https://github.com/bbyte/MoonrakerPreprocessingProxy.git
 cd MoonrakerPreProcessingProxy
 ```
 
