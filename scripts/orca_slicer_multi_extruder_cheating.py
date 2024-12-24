@@ -4,8 +4,8 @@ import re
 async def process(file_path: Path):
     """
     Preprocessing rule for OrcaSlicer multi-extruder files that:
-    1. Removes M600 and T[n] commands before ";TYPE:Skirt" marker
-    2. Removes standalone T[n] commands throughout the file
+    1. Comments out M600 and T[n] commands before ";TYPE:Skirt" marker
+    2. Comments out standalone T[n] commands throughout the file
     3. Removes T[n] part from M104 and M109 commands
     
     Args:
@@ -31,6 +31,11 @@ async def process(file_path: Path):
     found_skirt = False
     modified_lines = []
     
+    # Add header comments
+    modified_lines.append("; File modified by Moonraker Preprocessing Proxy\n")
+    modified_lines.append("; Rule: OrcaSlicer Multi-Extruder Cheating\n")
+    modified_lines.append("\n")
+    
     for line in lines:
         # Check for skirt marker
         if ";TYPE:Skirt" in line:
@@ -38,27 +43,36 @@ async def process(file_path: Path):
             modified_lines.append(line)
             continue
             
-        # Before skirt marker, remove M600 and T[n] commands
+        # Before skirt marker, comment out M600 and T[n] commands
         if not found_skirt:
             if re.match(r'^\s*(M600|T\d+)\s*$', line.strip()):
+                modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
                 continue
                 
         # Process M104 and M109 commands - remove T[n] part if present
         if line.strip().startswith('M104'):
             if 'preheat' in line.lower():
                 # Comment out the entire line if it contains preheat
-                line = ';' + line
+                modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
             else:
                 # Remove T[n] part but keep the rest of the command
-                line = re.sub(r'\bT\d+\s*', '', line)
+                modified_line = re.sub(r'\bT\d+\s*', '', line)
+                if modified_line != line:
+                    modified_lines.append(f"{modified_line.rstrip()} ; T[n] removed by OrcaSlicer Multi-Extruder Cheating\n")
+                else:
+                    modified_lines.append(line)
         elif line.strip().startswith('M109'):
             # Remove T[n] part but keep the rest of the command
-            line = re.sub(r'\bT\d+\s*', '', line)
-        # Remove standalone T[n] commands
+            modified_line = re.sub(r'\bT\d+\s*', '', line)
+            if modified_line != line:
+                modified_lines.append(f"{modified_line.rstrip()} ; T[n] removed by OrcaSlicer Multi-Extruder Cheating\n")
+            else:
+                modified_lines.append(line)
+        # Comment out standalone T[n] commands
         elif re.match(r'^\s*T\d+\s*$', line.strip()):
-            continue
-            
-        modified_lines.append(line)
+            modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
+        else:
+            modified_lines.append(line)
     
     # Write modified content back to file
     with open(file_path, 'w', newline='') as f:
