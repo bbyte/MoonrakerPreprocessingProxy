@@ -4,7 +4,7 @@ import re
 async def process(file_path: Path):
     """
     Preprocessing rule for OrcaSlicer multi-extruder files that:
-    1. Comments out M600 and T[n] commands before ";TYPE:Skirt" marker
+    1. Comments out M600 commands before either ";TYPE:Skirt" or BEFORE_LAYER_CHANGE marker
     2. Comments out standalone T[n] commands throughout the file
     3. Removes T[n] part from M104 and M109 commands
     
@@ -28,7 +28,7 @@ async def process(file_path: Path):
     lines = text_content.splitlines(keepends=True)
     
     # Process the file
-    found_skirt = False
+    found_print_start = False  # Will be set to True when either marker is found
     modified_lines = []
     
     # Add header comments
@@ -37,17 +37,16 @@ async def process(file_path: Path):
     modified_lines.append("\n")
     
     for line in lines:
-        # Check for skirt marker
-        if ";TYPE:Skirt" in line:
-            found_skirt = True
+        # Check for either marker - whichever comes first
+        if not found_print_start and (";TYPE:Skirt" in line or "BEFORE_LAYER_CHANGE" in line):
+            found_print_start = True
             modified_lines.append(line)
             continue
             
-        # Before skirt marker, comment out M600 and T[n] commands
-        if not found_skirt:
-            if re.match(r'^\s*(M600|T\d+)\s*$', line.strip()):
-                modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
-                continue
+        # Before either marker is found, comment out M600 commands
+        if not found_print_start and re.match(r'^\s*M600\s*$', line.strip()):
+            modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
+            continue
                 
         # Process M104 and M109 commands - remove T[n] part if present
         if line.strip().startswith('M104'):
