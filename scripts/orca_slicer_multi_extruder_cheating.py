@@ -43,13 +43,16 @@ async def process(file_path: Path):
             modified_lines.append(line)
             continue
             
-        # Before either marker is found, comment out M600 commands
-        if not found_print_start and re.match(r'^\s*M600\s*$', line.strip()):
+        # Handle different command types
+        stripped_line = line.strip()
+        
+        # Before print start, comment out M600
+        if not found_print_start and re.match(r'^\s*M600\s*$', stripped_line):
             modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
             continue
                 
-        # Process M104 and M109 commands - remove T[n] part if present
-        if line.strip().startswith('M104'):
+        # Throughout the file, handle M104/M109 commands - remove T[n] part if present
+        if stripped_line.startswith('M104'):
             if 'preheat' in line.lower():
                 # Comment out the entire line if it contains preheat
                 modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
@@ -60,16 +63,17 @@ async def process(file_path: Path):
                     modified_lines.append(f"{modified_line.rstrip()} ; T[n] removed by OrcaSlicer Multi-Extruder Cheating\n")
                 else:
                     modified_lines.append(line)
-        elif line.strip().startswith('M109'):
+        elif stripped_line.startswith('M109'):
             # Remove T[n] part but keep the rest of the command
             modified_line = re.sub(r'\bT\d+\s*', '', line)
             if modified_line != line:
                 modified_lines.append(f"{modified_line.rstrip()} ; T[n] removed by OrcaSlicer Multi-Extruder Cheating\n")
             else:
                 modified_lines.append(line)
-        # Comment out standalone T[n] commands
-        elif re.match(r'^\s*T\d+\s*$', line.strip()):
+        # Throughout the file, comment out standalone T[n] commands
+        elif re.match(r'^\s*T\d+\s*$', stripped_line):
             modified_lines.append(f";{line.rstrip()} ; commented out by OrcaSlicer Multi-Extruder Cheating\n")
+        # Keep all other lines unchanged
         else:
             modified_lines.append(line)
     
